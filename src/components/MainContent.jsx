@@ -1,109 +1,120 @@
+import { useState } from 'react'
+import GlassCard from './GlassCard'
+
 const featured = [
-  { title: 'Blinding Lights', artist: 'The Weeknd', color: '#a855f7', emoji: '🌙' },
-  { title: 'Param Sundari', artist: 'A.R. Rahman', color: '#ec4899', emoji: '✨' },
-  { title: 'Psychedelic', artist: 'D3m0n X Diablo', color: '#3b82f6', emoji: '🔮' },
+  { title: 'Blinding Lights', artist: 'The Weeknd', color: '#22d3ee', bg: 'rgba(34,211,238,0.08)', icon: '◈' },
+  { title: 'Param Sundari', artist: 'A.R. Rahman', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', icon: '◉' },
+  { title: 'Psychedelic', artist: 'D3m0n X Diablo', color: '#818cf8', bg: 'rgba(129,140,248,0.08)', icon: '◍' },
 ]
 
 const songs = [
-  { id: 1, title: 'Rait Zara Si', artist: 'A.R. Rahman', album: 'Atrangi Re', duration: '4:02', emoji: '🌊' },
-  { id: 2, title: 'Dholida', artist: 'Jonita Gandhi', album: 'Gangubai', duration: '3:45', emoji: '🎶' },
-  { id: 3, title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', duration: '3:20', emoji: '💜' },
-  { id: 4, title: 'Doobey', artist: 'Rekha Bhardwaj', album: 'Gehraiyaan', duration: '4:30', emoji: '��' },
-  { id: 5, title: 'Hum Nashe Mein', artist: 'Arijit Singh', album: 'Bhoot Police', duration: '3:58', emoji: '🔥' },
-  { id: 6, title: 'Shape of You', artist: 'Ed Sheeran', album: 'Divide', duration: '3:53', emoji: '💛' },
-  { id: 7, title: 'Secrets', artist: 'Tiësto & KSHMR', album: 'Singles', duration: '3:12', emoji: '🎵' },
-  { id: 8, title: 'Mi Cama', artist: 'Karol G', album: 'Ocean', duration: '3:07', emoji: '🌺' },
+  { id: 1, title: 'Rait Zara Si', artist: 'A.R. Rahman', album: 'Atrangi Re', duration: '4:02', color: '#22d3ee' },
+  { id: 2, title: 'Dholida', artist: 'Jonita Gandhi', album: 'Gangubai', duration: '3:45', color: '#f59e0b' },
+  { id: 3, title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', duration: '3:20', color: '#818cf8' },
+  { id: 4, title: 'Doobey', artist: 'Rekha Bhardwaj', album: 'Gehraiyaan', duration: '4:30', color: '#22d3ee' },
+  { id: 5, title: 'Hum Nashe Mein', artist: 'Arijit Singh', album: 'Bhoot Police', duration: '3:58', color: '#f59e0b' },
+  { id: 6, title: 'Shape of You', artist: 'Ed Sheeran', album: 'Divide', duration: '3:53', color: '#0ea5e9' },
+  { id: 7, title: 'Secrets', artist: 'Tiësto & KSHMR', album: 'Singles', duration: '3:12', color: '#818cf8' },
+  { id: 8, title: 'Mi Cama', artist: 'Karol G', album: 'Ocean', duration: '3:07', color: '#22d3ee' },
 ]
 
 export default function MainContent({ screenSize = 'desktop' }) {
+  const [activeSong, setActiveSong] = useState(3)
   const isMobile = screenSize === 'mobile'
   const isTablet = screenSize === 'tablet'
 
   return (
-    <div style={{
-      height: '100%', overflowY: 'auto',
-      padding: isMobile ? '20px 16px 8px' : isTablet ? '24px 20px' : '28px 24px',
-      fontFamily: 'var(--font-body)',
-    }}>
+    <div style={{ height: '100%', overflowY: 'auto', padding: isMobile ? '18px 14px 8px' : '24px 22px', fontFamily: 'var(--font-body)' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', marginBottom: isMobile ? '20px' : '28px', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '3px' }}>Good Evening,</p>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: isMobile ? '22px' : '28px', fontWeight: 700, background: 'var(--accent-grad)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', lineHeight: 1.2, margin: 0 }}>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>Good Evening</p>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: isMobile ? 20 : 26, fontWeight: 800, background: 'var(--accent-grad)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', lineHeight: 1.15, margin: 0 }}>
             What's the vibe?
           </h1>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-          {(isMobile ? ['🔔'] : ['🔔', '🕐', '⚙']).map(icon => (
-            <button key={icon} style={{ width: isMobile ? 34 : 38, height: isMobile ? 34 : 38, borderRadius: '50%', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--glass-bg-hover)'; e.currentTarget.style.borderColor = 'var(--glass-border-hover)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'var(--glass-bg)'; e.currentTarget.style.borderColor = 'var(--glass-border)' }}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {(isMobile ? ['🔔'] : ['🔔', '⊙', '⚙']).map(icon => (
+            <button key={icon} style={{ width: isMobile ? 34 : 36, height: isMobile ? 34 : 36, borderRadius: '50%', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
             >{icon}</button>
           ))}
         </div>
       </div>
 
-      {/* Search bar */}
-      <div style={{ position: 'relative', marginBottom: isMobile ? '24px' : '32px' }}>
-        <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '15px' }}>⊙</span>
-        <input placeholder="Search songs, artists, playlists..." style={{ width: '100%', padding: isMobile ? '11px 14px 11px 40px' : '12px 16px 12px 42px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '14px', color: 'var(--text-primary)', fontSize: '14px', fontFamily: 'var(--font-body)', outline: 'none', backdropFilter: 'blur(20px)', transition: 'all 0.2s' }}
-        onFocus={e => { e.target.style.borderColor = 'rgba(168,85,247,0.5)'; e.target.style.boxShadow = '0 0 0 3px rgba(168,85,247,0.1)' }}
-        onBlur={e => { e.target.style.borderColor = 'var(--glass-border)'; e.target.style.boxShadow = 'none' }}
+      {/* Search */}
+      <div style={{ position: 'relative', marginBottom: 28 }}>
+        <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 14 }}>⊙</span>
+        <input placeholder="Search songs, artists, playlists..." style={{ width: '100%', padding: '11px 14px 11px 38px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 13, color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', transition: 'all 0.2s' }}
+        onFocus={e => { e.target.style.borderColor = 'rgba(34,211,238,0.4)'; e.target.style.background = 'rgba(34,211,238,0.04)'; e.target.style.boxShadow = '0 0 0 3px rgba(34,211,238,0.07)' }}
+        onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.07)'; e.target.style.background = 'rgba(255,255,255,0.03)'; e.target.style.boxShadow = 'none' }}
         />
       </div>
 
       {/* Featured */}
-      <div style={{ marginBottom: isMobile ? '28px' : '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Featured</h2>
-          <button style={{ fontSize: '13px', color: 'var(--accent-purple)', background: 'none', border: 'none', cursor: 'pointer' }}>See all</button>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.2px' }}>Featured</h2>
+          <button style={{ fontSize: 12, color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.8 }}>See all →</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(1, 1fr)' : 'repeat(3, 1fr)', gap: '12px' }}>
-          {(isMobile ? featured.slice(0, 1) : featured).map(f => (
-            <div key={f.title} style={{ borderRadius: '18px', padding: isMobile ? '20px 18px' : '22px 20px', background: `linear-gradient(135deg, ${f.color}22, ${f.color}08)`, border: `1px solid ${f.color}30`, cursor: 'pointer', position: 'relative', overflow: 'hidden', transition: 'all 0.3s ease', display: isMobile ? 'flex' : 'block', alignItems: isMobile ? 'center' : 'unset', gap: isMobile ? '14px' : '0' }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 16px 40px ${f.color}25` }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
-            >
-              <div style={{ fontSize: isMobile ? '36px' : '32px', marginBottom: isMobile ? 0 : '12px', flexShrink: 0 }}>{f.emoji}</div>
-              <div>
-                <p style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '3px', margin: 0 }}>{f.title}</p>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '3px 0 0' }}>{f.artist}</p>
-              </div>
-              <div style={{ position: 'absolute', top: '16px', right: '16px', width: 30, height: 30, borderRadius: '50%', background: `${f.color}30`, border: `1px solid ${f.color}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>▶</div>
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 10 }}>
+          {(isMobile ? featured.slice(0,1) : featured).map(f => (
+            <GlassCard key={f.title} padding="18px 16px" radius={16} onClick={() => {}} style={{ position: 'relative', overflow: 'hidden' }}>
+              {/* color glow top-right */}
+              <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: `radial-gradient(circle, ${f.color}30, transparent 70%)`, filter: 'blur(10px)', pointerEvents: 'none' }} />
+              <div style={{ fontSize: 28, marginBottom: 10, filter: `drop-shadow(0 0 8px ${f.color}60)` }}>{f.icon}</div>
+              <p style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 3px' }}>{f.title}</p>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{f.artist}</p>
+              <div style={{ position: 'absolute', top: 14, right: 14, width: 28, height: 28, borderRadius: '50%', background: `${f.color}18`, border: `1px solid ${f.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: f.color, cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${f.color}35`; e.currentTarget.style.boxShadow = `0 0 12px ${f.color}50` }}
+              onMouseLeave={e => { e.currentTarget.style.background = `${f.color}18`; e.currentTarget.style.boxShadow = 'none' }}
+              >▶</div>
+            </GlassCard>
           ))}
         </div>
       </div>
 
       {/* Song list */}
-      <div style={{ paddingBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Recently Played</h2>
-          <button style={{ fontSize: '13px', color: 'var(--accent-purple)', background: 'none', border: 'none', cursor: 'pointer' }}>See all</button>
+      <div style={{ paddingBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Recently Played</h2>
+          <button style={{ fontSize: 12, color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.8 }}>See all →</button>
         </div>
 
         {!isMobile && (
-          <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '28px 1fr auto' : '28px 1fr 1fr auto', gap: '12px', padding: '0 12px 10px', borderBottom: '1px solid var(--glass-border)' }}>
-            {(isTablet ? ['#', 'Title', '⏱'] : ['#', 'Title', 'Album', '⏱']).map(h => (
-              <span key={h} style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500 }}>{h}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '24px 1fr auto' : '24px 1fr 1fr auto', gap: 12, padding: '0 12px 8px', marginBottom: 4 }}>
+            {(isTablet ? ['#','Title','⏱'] : ['#','Title','Album','⏱']).map(h => (
+              <span key={h} style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>{h}</span>
             ))}
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '6px' }}>
-          {songs.map((song) => (
-            <div key={song.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? 'auto 1fr auto' : isTablet ? '28px 1fr auto' : '28px 1fr 1fr auto', gap: isMobile ? '12px' : '12px', padding: isMobile ? '10px 8px' : '10px 12px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid transparent', alignItems: 'center' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--glass-bg)'; e.currentTarget.style.borderColor = 'var(--glass-border)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent' }}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {songs.map((song, i) => (
+            <div key={song.id} onClick={() => setActiveSong(song.id)} style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'auto 1fr auto' : isTablet ? '24px 1fr auto' : '24px 1fr 1fr auto',
+              gap: 12, padding: isMobile ? '10px 8px' : '9px 12px',
+              borderRadius: 12, cursor: 'pointer', transition: 'all 0.2s',
+              background: activeSong === song.id ? 'rgba(34,211,238,0.06)' : 'transparent',
+              border: `1px solid ${activeSong === song.id ? 'rgba(34,211,238,0.2)' : 'transparent'}`,
+              alignItems: 'center',
+            }}
+            onMouseEnter={e => { if (activeSong !== song.id) { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' } }}
+            onMouseLeave={e => { if (activeSong !== song.id) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent' } }}
             >
-              <span style={{ fontSize: isMobile ? '22px' : '14px', textAlign: 'center', width: isMobile ? 'auto' : '28px' }}>{song.emoji}</span>
+              {isMobile
+                ? <div style={{ width: 34, height: 34, borderRadius: 10, background: `${song.color}15`, border: `1px solid ${song.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: song.color, flexShrink: 0 }}>♪</div>
+                : <span style={{ fontSize: 11, color: activeSong === song.id ? 'var(--accent-primary)' : 'var(--text-muted)', textAlign: 'center', fontWeight: activeSong === song.id ? 600 : 400 }}>{activeSong === song.id ? '▶' : i + 1}</span>
+              }
               <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</p>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.artist}</p>
+                <p style={{ fontSize: 13, fontWeight: activeSong === song.id ? 500 : 400, color: activeSong === song.id ? 'var(--accent-primary)' : 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</p>
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.artist}</p>
               </div>
-              {!isMobile && !isTablet && <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.album}</span>}
-              <span style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'right' }}>{song.duration}</span>
+              {!isMobile && !isTablet && <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.album}</span>}
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{song.duration}</span>
             </div>
           ))}
         </div>
