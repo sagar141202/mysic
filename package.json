@@ -14,7 +14,8 @@
     "framer-motion": "^12.38.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "tailwindcss": "^4.2.4"
+    "tailwindcss": "^4.2.4",
+    "youtube-search-api": "^2.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
