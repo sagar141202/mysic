@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar'
 import MainContent from './MainContent'
 import NowPlaying from './NowPlaying'
 import Player from './Player'
 import MobileNav from './MobileNav'
 import YouTubePlayer from './YouTubePlayer'
+import PageTransition from './PageTransition'
 import DiscoverPage from '../pages/DiscoverPage'
 import LibraryPage from '../pages/LibraryPage'
 import LikedPage from '../pages/LikedPage'
@@ -54,7 +56,13 @@ export default function Layout() {
       {isDesktop && (
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'var(--sidebar-width) 1fr var(--right-panel-width)', gridTemplateRows: '1fr var(--player-height)', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
           <div style={{ gridColumn: 1, gridRow: 1, overflow: 'hidden' }}><Sidebar activePage={activePage} onNavigate={setActivePage} /></div>
-          <div style={{ gridColumn: 2, gridRow: 1, overflow: 'hidden' }}><PageRouter page={activePage} screenSize={screen} /></div>
+          <div style={{ gridColumn: 2, gridRow: 1, overflow: 'hidden', position: 'relative' }}>
+            <AnimatePresence mode="wait">
+              <PageTransition pageKey={activePage}>
+                <PageRouter page={activePage} screenSize={screen} />
+              </PageTransition>
+            </AnimatePresence>
+          </div>
           <div style={{ gridColumn: 3, gridRow: 1, overflow: 'hidden' }}><NowPlaying /></div>
           <div style={{ gridColumn: '1/-1', gridRow: 2 }}><Player /></div>
         </div>
@@ -64,7 +72,13 @@ export default function Layout() {
       {isTablet && (
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '68px 1fr', gridTemplateRows: '1fr var(--player-height)', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
           <div style={{ gridColumn: 1, gridRow: 1 }}><Sidebar collapsed activePage={activePage} onNavigate={setActivePage} /></div>
-          <div style={{ gridColumn: 2, gridRow: 1, overflow: 'hidden' }}><PageRouter page={activePage} screenSize={screen} /></div>
+          <div style={{ gridColumn: 2, gridRow: 1, overflow: 'hidden', position: 'relative' }}>
+            <AnimatePresence mode="wait">
+              <PageTransition pageKey={activePage}>
+                <PageRouter page={activePage} screenSize={screen} />
+              </PageTransition>
+            </AnimatePresence>
+          </div>
           <div style={{ gridColumn: '1/-1', gridRow: 2 }}><Player onNowPlayingClick={() => setNowPlayingOpen(true)} /></div>
           {nowPlayingOpen && <>
             <div onClick={() => setNowPlayingOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 40, animation: 'fadeIn 0.2s ease' }} />
@@ -76,7 +90,13 @@ export default function Layout() {
       {/* Mobile */}
       {isMobile && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
-          <div style={{ flex: 1, overflow: 'hidden' }}><PageRouter page={activePage} screenSize={screen} /></div>
+          <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+            <AnimatePresence mode="wait">
+              <PageTransition pageKey={activePage}>
+                <PageRouter page={activePage} screenSize={screen} />
+              </PageTransition>
+            </AnimatePresence>
+          </div>
           <Player mobile onNowPlayingClick={() => setNowPlayingOpen(true)} />
           <MobileNav activePage={activePage} onNavigate={setActivePage} />
           {nowPlayingOpen && <>
