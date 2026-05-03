@@ -1,8 +1,9 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePlayer } from '../hooks/usePlayer.jsx'
 import { formatTime } from '../data/songs'
 import AlbumArt from './AlbumArt'
+import LyricsPanel from './LyricsPanel'
 import AudioVisualizer from './AudioVisualizer'
 
 const EASE = [0.25, 0.46, 0.45, 0.94]
@@ -107,6 +108,8 @@ export default function NowPlaying({ onClose }) {
     toggleLike, liked, queue,
   } = usePlayer()
 
+  const [showLyrics, setShowLyrics] = useState(false)
+
   const isLiked    = liked.has(currentSong.id)
   const currentSec = Math.floor((progress / 100) * currentSong.duration)
 
@@ -140,6 +143,29 @@ export default function NowPlaying({ onClose }) {
         <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0 }}>
           Now Playing
         </p>
+
+        {/* Lyrics toggle */}
+        <motion.button
+          onClick={() => setShowLyrics(v => !v)}
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.88 }}
+          title={showLyrics ? 'Hide lyrics' : 'Show lyrics'}
+          style={{
+            width: 44, height: 44,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: showLyrics ? 'rgba(34,211,238,0.12)' : 'none',
+            border: showLyrics ? '1px solid rgba(34,211,238,0.30)' : '1px solid transparent',
+            borderRadius: 12, cursor: 'pointer',
+            color: showLyrics ? 'var(--accent-primary)' : 'var(--text-muted)',
+            fontSize: 16,
+            transition: 'all 0.2s ease',
+            WebkitTapHighlightColor: 'transparent',
+            marginLeft: 'auto',
+            marginRight: 4,
+          }}
+        >
+          ♪
+        </motion.button>
         {onClose && (
           <motion.button
             onClick={onClose}
@@ -272,6 +298,32 @@ export default function NowPlaying({ onClose }) {
         </span>
       </div>
 
+      {/* Lyrics / Up Next toggle */}
+      <AnimatePresence mode="wait">
+        {showLyrics ? (
+          <motion.div
+            key="lyrics"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{    opacity: 0, y: -8 }}
+            transition={{ duration: 0.26, ease: EASE }}
+            style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 16, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+          >
+            <LyricsPanel
+              song={currentSong}
+              currentSec={currentSec}
+              isPlaying={isPlaying}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="upnext"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{    opacity: 0, y: -8 }}
+            transition={{ duration: 0.26, ease: EASE }}
+            style={{ flex: 1, minHeight: 0 }}
+          >
       {/* Up Next */}
       {upNext.length > 0 && (
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 16, flex: 1, minHeight: 0 }}>
@@ -310,6 +362,9 @@ export default function NowPlaying({ onClose }) {
           </div>
         </div>
       )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
