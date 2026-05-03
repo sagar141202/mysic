@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react'
-import GlassCard from './GlassCard'
 import { usePlayer } from '../hooks/usePlayer.jsx'
 import { formatTime } from '../data/songs'
+import AlbumArt from './AlbumArt'
 
 function Scrubber({ pct, onSeek }) {
   const dragging = useRef(false)
@@ -94,23 +94,14 @@ export default function NowPlaying({ onClose }) {
         )}
       </div>
 
-      {/* Album Art */}
-      <GlassCard radius={18} hoverable={false} glow style={{
-        aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: 22, overflow: 'hidden',
-        background: `linear-gradient(135deg, ${currentSong.color}1e, ${currentSong.color}08)`,
-        boxShadow: `0 20px 60px ${currentSong.color}20, 0 0 0 1px ${currentSong.color}18`,
-        transition: 'background 0.5s, box-shadow 0.5s',
+      {/* Album Art — large, xl size, animated when playing */}
+      <div style={{
+        marginBottom: 22, borderRadius: 18, overflow: 'hidden',
+        boxShadow: `0 20px 60px ${currentSong.color || '#8b5cf6'}30`,
+        transition: 'box-shadow 0.5s',
       }}>
-        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 32% 32%, ${currentSong.color}28, transparent 62%)` }} />
-        <div style={{ position: 'absolute', bottom: -24, right: -24, width: 130, height: 130, borderRadius: '50%', background: `radial-gradient(circle, ${currentSong.color}18, transparent 70%)`, filter: 'blur(22px)' }} />
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${currentSong.color}35, transparent)` }} />
-        <span style={{
-          fontSize: 58, position: 'relative', zIndex: 1,
-          filter: `drop-shadow(0 0 22px ${currentSong.color}70)`,
-          animation: isPlaying ? 'float 3s ease-in-out infinite' : 'none',
-        }}>&#9672;</span>
-      </GlassCard>
+        <AlbumArt song={currentSong} size="xl" isPlaying={isPlaying} />
+      </div>
 
       {/* Track info */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
@@ -167,12 +158,7 @@ export default function NowPlaying({ onClose }) {
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent' }}
             >
-              <div style={{
-                width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-                background: `${song.color}14`, border: `1px solid ${song.color}28`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 13, color: song.color,
-              }}>&#9834;</div>
+              <AlbumArt song={song} size="xs" />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{ fontSize: 12, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</p>
                 <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: 0 }}>{song.artist}</p>

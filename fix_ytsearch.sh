@@ -1,3 +1,16 @@
+#!/usr/bin/env bash
+set -e
+
+REPO_ROOT="$(pwd)"
+
+if [ ! -f "$REPO_ROOT/vite.config.js" ]; then
+  echo "❌  Run from the mysic repo root."
+  exit 1
+fi
+
+echo "─── Fixing src/utils/ytSearch.js ───"
+
+cat > "$REPO_ROOT/src/utils/ytSearch.js" << 'YTSEARCH_EOF'
 // ─────────────────────────────────────────────────────────────────────────────
 // ytSearch.js — free YouTube search, no API key required
 // ─────────────────────────────────────────────────────────────────────────────
@@ -177,3 +190,13 @@ export async function ytSearch(query) {
 export async function searchYouTube(query, _count) {
   return ytSearch(query)
 }
+YTSEARCH_EOF
+
+echo "✅  ytSearch.js fixed"
+echo ""
+echo "╔════════════════════════════════════════╗"
+echo "║  Done! Now run:  npm run dev           ║"
+echo "║                                        ║"
+echo "║  Open browser console — you should     ║"
+echo "║  see: [ytSearch] 'query' → N results   ║"
+echo "╚════════════════════════════════════════╝"

@@ -1,6 +1,7 @@
 import { useRef, useCallback } from 'react'
 import { usePlayer } from '../hooks/usePlayer.jsx'
 import { formatTime } from '../data/songs'
+import AlbumArt from './AlbumArt'
 
 function useScrubber(onSeek) {
   const dragging = useRef(false)
@@ -68,18 +69,6 @@ function Btn({ children, onClick, size = 32, primary = false, title }) {
   )
 }
 
-function AlbumThumb({ song, size = 44, radius = 12 }) {
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: radius, flexShrink: 0,
-      background: `linear-gradient(135deg, ${song.color}28, ${song.color}0d)`,
-      border: `1px solid ${song.color}35`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.45, boxShadow: `0 4px 14px ${song.color}25`,
-    }}>&#9672;</div>
-  )
-}
-
 function MobilePlayer({ onNowPlayingClick }) {
   const { currentSong, isPlaying, progress, togglePlay, playNext } = usePlayer()
   return (
@@ -88,7 +77,7 @@ function MobilePlayer({ onNowPlayingClick }) {
         <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent-grad)', transition: 'width 0.9s linear' }} />
       </div>
       <div onClick={onNowPlayingClick} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer' }}>
-        <AlbumThumb song={currentSong} size={40} radius={10} />
+        <AlbumArt song={currentSong} size="sm" isPlaying={isPlaying} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentSong.title}</p>
           <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{currentSong.artist}</p>
@@ -117,7 +106,7 @@ export default function Player({ mobile = false, onNowPlayingClick }) {
 
       {/* Left: track info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <AlbumThumb song={currentSong} size={44} radius={12} />
+        <AlbumArt song={currentSong} size="sm" isPlaying={isPlaying} />
         <div style={{ minWidth: 0 }}>
           <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{currentSong.title}</p>
           <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{currentSong.artist}</p>
