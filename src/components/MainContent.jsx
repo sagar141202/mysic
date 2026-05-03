@@ -123,7 +123,7 @@ export default function MainContent({ screenSize = 'desktop' }) {
                 isLiked={liked.has(song.id)}
                 isMobile={isMobile} isTablet={isTablet}
                 onClick={() => currentSong.id === song.id ? togglePlay() : playSong(song, displaySongs)}
-                onLike={e => { e.stopPropagation(); toggleLike(song.id) }}
+                onLike={e => { e.stopPropagation(); toggleLike(song.id, song) }}
               />
             ))}
           </div>

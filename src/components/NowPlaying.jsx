@@ -118,7 +118,7 @@ export default function NowPlaying({ onClose }) {
           <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentSong.title}</h3>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{currentSong.artist}</p>
         </div>
-        <button onClick={() => toggleLike(currentSong.id)} style={{
+        <button onClick={() => toggleLike(currentSong.id, currentSong)} style={{
           background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', marginLeft: 8, flexShrink: 0,
           color: isLiked ? 'var(--accent-primary)' : 'var(--text-muted)',
           filter: isLiked ? 'drop-shadow(0 0 6px rgba(34,211,238,0.6))' : 'none',

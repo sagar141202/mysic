@@ -1,16 +1,14 @@
 import GlassCard from '../components/GlassCard'
 import SongList from '../components/SongList'
-import { SONGS } from '../data/songs'
 import { usePlayer } from '../hooks/usePlayer.jsx'
 
 export default function LikedPage() {
-  const { liked, playSong } = usePlayer()
-  const likedSongs = SONGS.filter(s => liked.has(s.id))
+  const { likedSongs, playSong } = usePlayer()
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', padding: '24px 22px', fontFamily: 'var(--font-body)' }}>
-      {/* Header */}
-      <GlassCard variant="elevated" padding="28px 24px" radius={20} hoverable={false} style={{ marginBottom: 28, overflow: 'hidden', position: 'relative' }}>
+      <GlassCard variant="elevated" padding="28px 24px" radius={20} hoverable={false}
+        style={{ marginBottom: 28, overflow: 'hidden', position: 'relative' }}>
         <div style={{ position: 'absolute', top: -30, right: -30, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(34,211,238,0.15), transparent 70%)', filter: 'blur(20px)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: 40, marginBottom: 10, filter: 'drop-shadow(0 0 16px rgba(34,211,238,0.6))' }}>♥</div>
@@ -19,7 +17,7 @@ export default function LikedPage() {
         </div>
         {likedSongs.length > 0 && (
           <button
-            onClick={() => playSong(likedSongs[0])}
+            onClick={() => playSong(likedSongs[0], likedSongs)}
             style={{ position: 'absolute', bottom: 24, right: 24, width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-grad)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#08121f', cursor: 'pointer', boxShadow: '0 4px 20px rgba(34,211,238,0.4)', transition: 'transform 0.2s', zIndex: 1 }}
             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}

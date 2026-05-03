@@ -28,18 +28,19 @@ export default function SongList({ songs, showIndex = true }) {
             <div style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, overflow: 'hidden', background: `linear-gradient(135deg, ${song.color}28, ${song.color}0d)`, border: `1px solid ${song.color}${active ? '55' : '30'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: active ? `0 0 14px ${song.color}40` : 'none' }}>
               {song.thumbnail
                 ? <img src={song.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none' }} />
-                : <span style={{ fontSize: 14 }}>♪</span>
+                : <span style={{ fontSize: 14 }}>&#9834;</span>
               }
             </div>
             <div style={{ minWidth: 0 }}>
               <p style={{ fontSize: 13, margin: 0, fontWeight: active ? 500 : 400, color: active ? 'var(--accent-primary)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</p>
               <p style={{ fontSize: 11, margin: 0, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.artist}</p>
             </div>
-            <button onClick={e => { e.stopPropagation(); toggleLike(song.id) }}
+            <button
+              onClick={e => { e.stopPropagation(); toggleLike(song.id, song) }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: isLiked ? 'var(--accent-primary)' : 'var(--text-muted)', filter: isLiked ? 'drop-shadow(0 0 4px rgba(34,211,238,0.5))' : 'none', transition: 'all 0.2s', padding: '0 4px' }}
               onMouseEnter={e => { if (!isLiked) e.currentTarget.style.color = 'var(--text-primary)' }}
               onMouseLeave={e => { if (!isLiked) e.currentTarget.style.color = 'var(--text-muted)' }}
-            >{isLiked ? '♥' : '♡'}</button>
+            >{isLiked ? '\u2665' : '\u2661'}</button>
             <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatTime(song.duration)}</span>
           </div>
         )

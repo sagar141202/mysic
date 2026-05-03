@@ -8,15 +8,28 @@ const ytPause = () => { try { window.__ytPlayer?.pauseVideo() } catch(_){} }
 const ytSeek  = (s) => { try { window.__ytPlayer?.seekTo(s, true) } catch(_){} }
 const ytVol   = (v) => { try { window.__ytPlayer?.setVolume(v)    } catch(_){} }
 
+function loadLikedSongs() {
+  try {
+    const raw = localStorage.getItem('mysic_liked')
+    return raw ? JSON.parse(raw) : []
+  } catch(_) { return [] }
+}
+
+function saveLikedSongs(songs) {
+  try { localStorage.setItem('mysic_liked', JSON.stringify(songs)) } catch(_){}
+}
+
 export function PlayerProvider({ children }) {
   const [currentSong, setCurrentSong] = useState(SONGS[0])
   const [isPlaying,   setIsPlaying]   = useState(false)
   const [progress,    setProgress]    = useState(0)
   const [volume,      setVolume_]     = useState(72)
-  const [liked,       setLiked]       = useState(new Set())
+  const [likedSongs,  setLikedSongs]  = useState(() => loadLikedSongs())
   const [queue,       setQueue]       = useState(SONGS)
   const [_ytReady,    _setYtReady]    = useState(false)
   const intervalRef = useRef(null)
+
+  const liked = new Set(likedSongs.map(s => s.id))
 
   const startTick = useCallback((song, fromProgress) => {
     clearInterval(intervalRef.current)
@@ -32,7 +45,7 @@ export function PlayerProvider({ children }) {
             setTimeout(() => startTick(next, 0), 0)
             return q
           })
-          return prev // will be updated by startTick callback
+          return prev
         })
         setProgress(0)
       } else {
@@ -50,9 +63,8 @@ export function PlayerProvider({ children }) {
     setIsPlaying(true)
     if (newQueue) setQueue(newQueue)
     startTick(song, 0)
-    if (window.__ytPlayer?.loadVideoById) {
+    if (window.__ytPlayer?.loadVideoById)
       window.__ytPlayer.loadVideoById({ videoId: song.youtubeId, startSeconds: 0 })
-    }
   }, [startTick, stopTick])
 
   const togglePlay = useCallback(() => {
@@ -67,30 +79,22 @@ export function PlayerProvider({ children }) {
     setQueue(q => {
       const idx  = q.findIndex(s => s.id === currentSong.id)
       const next = q[(idx + 1) % q.length]
-      stopTick()
-      setCurrentSong(next)
-      setProgress(0)
-      setIsPlaying(true)
+      stopTick(); setCurrentSong(next); setProgress(0); setIsPlaying(true)
       startTick(next, 0)
-      if (window.__ytPlayer?.loadVideoById) {
+      if (window.__ytPlayer?.loadVideoById)
         window.__ytPlayer.loadVideoById({ videoId: next.youtubeId, startSeconds: 0 })
-      }
       return q
     })
   }, [currentSong, startTick, stopTick])
 
   const playPrev = useCallback(() => {
     setQueue(q => {
-      const idx  = q.findIndex(s => s.id === currentSong.id)
-      const prev = q[(idx - 1 + q.length) % q.length]
-      stopTick()
-      setCurrentSong(prev)
-      setProgress(0)
-      setIsPlaying(true)
-      startTick(prev, 0)
-      if (window.__ytPlayer?.loadVideoById) {
-        window.__ytPlayer.loadVideoById({ videoId: prev.youtubeId, startSeconds: 0 })
-      }
+      const idx = q.findIndex(s => s.id === currentSong.id)
+      const prv = q[(idx - 1 + q.length) % q.length]
+      stopTick(); setCurrentSong(prv); setProgress(0); setIsPlaying(true)
+      startTick(prv, 0)
+      if (window.__ytPlayer?.loadVideoById)
+        window.__ytPlayer.loadVideoById({ videoId: prv.youtubeId, startSeconds: 0 })
       return q
     })
   }, [currentSong, startTick, stopTick])
@@ -102,22 +106,25 @@ export function PlayerProvider({ children }) {
     ytSeek((clamped / 100) * currentSong.duration)
   }, [isPlaying, currentSong, startTick, stopTick])
 
-  const setVolume = useCallback(v => {
-    setVolume_(v)
-    ytVol(v)
-  }, [])
+  const setVolume = useCallback(v => { setVolume_(v); ytVol(v) }, [])
 
-  const toggleLike = useCallback(id => {
-    setLiked(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+  const toggleLike = useCallback((id, songObj) => {
+    setLikedSongs(prev => {
+      const exists = prev.some(s => s.id === id)
+      const next   = exists
+        ? prev.filter(s => s.id !== id)
+        : songObj ? [...prev, songObj] : prev
+      saveLikedSongs(next)
       return next
     })
   }, [])
 
   return (
     <PlayerContext.Provider value={{
-      currentSong, isPlaying, progress, volume, liked, queue,
+      currentSong, isPlaying, progress, volume,
+      liked,
+      likedSongs,
+      queue,
       playSong, togglePlay, playNext, playPrev, seek, setVolume, toggleLike,
       setQueue, _ytReady, _setYtReady,
     }}>

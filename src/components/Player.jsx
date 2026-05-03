@@ -122,7 +122,7 @@ export default function Player({ mobile = false, onNowPlayingClick }) {
           <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{currentSong.title}</p>
           <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{currentSong.artist}</p>
         </div>
-        <button onClick={() => toggleLike(currentSong.id)} style={{
+        <button onClick={() => toggleLike(currentSong.id, currentSong)} style={{
           background: 'none', border: 'none', flexShrink: 0, fontSize: 16, cursor: 'pointer',
           color: isLiked ? 'var(--accent-primary)' : 'var(--text-muted)',
           filter: isLiked ? 'drop-shadow(0 0 6px rgba(34,211,238,0.6))' : 'none',
