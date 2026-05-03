@@ -69,7 +69,20 @@ export default function AlbumArt({ song, size = 'md', className = '', isPlaying 
             transition: 'opacity 0.3s ease',
             display: 'block',
           }}
-          onLoad={() => setLoaded(true)}
+          onLoad={e => {
+            setLoaded(true)
+            /* For the large NowPlaying art, pre-warm colour extraction */
+            if (size === 'xl' && thumbUrl) {
+              extractColors(thumbUrl, 3).then(({ hex }) => {
+                /* Dispatch so any listener can react; useDynamicTheme
+                   already handles this via song id — this is a fast-path
+                   for when the image loads before the hook fires.       */
+                window.dispatchEvent(new CustomEvent('mysic:palette', {
+                  detail: { hex, src: thumbUrl }
+                }))
+              })
+            }
+          }}
           onError={() => { setFailed(true); setLoaded(true) }}
           loading="lazy"
           crossOrigin="anonymous"
