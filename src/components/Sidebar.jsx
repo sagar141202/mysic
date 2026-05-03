@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import GlassCard from './GlassCard'
+import { useAuth } from '../context/AuthContext'
 
 const nav = [
   { icon: '⌂', label: 'Home' },
@@ -10,6 +12,9 @@ const nav = [
 ]
 
 export default function Sidebar({ collapsed = false, onClose, activePage, onNavigate }) {
+  const { user, logout } = useAuth()
+  const [showLogout, setShowLogout] = useState(false)
+
   return (
     <div style={{
       height: '100%', display: 'flex', flexDirection: 'column',
@@ -19,6 +24,7 @@ export default function Sidebar({ collapsed = false, onClose, activePage, onNavi
       borderRight: '1px solid rgba(255,255,255,0.06)',
       fontFamily: 'var(--font-body)', overflowY: 'auto', overflowX: 'hidden',
     }}>
+
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '0 0 24px' : '0 6px 24px' }}>
         <div style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, background: 'var(--accent-grad)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, boxShadow: '0 4px 16px rgba(34,211,238,0.28)' }}>♫</div>
@@ -47,6 +53,7 @@ export default function Sidebar({ collapsed = false, onClose, activePage, onNavi
               cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)',
               fontWeight: active ? 500 : 400, transition: 'all 0.2s ease',
               boxShadow: active ? '0 2px 12px rgba(34,211,238,0.07)' : 'none',
+              minHeight: 42,
             }}
             onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}}
             onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'transparent' }}}
@@ -59,14 +66,14 @@ export default function Sidebar({ collapsed = false, onClose, activePage, onNavi
         })}
       </nav>
 
-      {/* Divider + Playlists label */}
+      {/* Divider + Playlists */}
       {!collapsed && (
         <>
           <div style={{ margin: '20px 0 14px', borderTop: '1px solid rgba(255,255,255,0.06)' }} />
           <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', color: 'var(--text-muted)', padding: '0 12px 10px', textTransform: 'uppercase' }}>Playlists</p>
           <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
             {[{ name: 'Late Night Drive', count: '6 songs' }, { name: 'Workout Beast', count: '5 songs' }, { name: 'Chill Sunday', count: '5 songs' }, { name: 'Bollywood Fire', count: '6 songs' }, { name: 'Deep Focus', count: '4 songs' }].map(p => (
-              <button key={p.name} onClick={() => onNavigate('Playlists')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, border: '1px solid transparent', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', width: '100%', fontFamily: 'var(--font-body)', textAlign: 'left', transition: 'all 0.2s ease' }}
+              <button key={p.name} onClick={() => onNavigate('Playlists')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, border: '1px solid transparent', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', width: '100%', fontFamily: 'var(--font-body)', textAlign: 'left', transition: 'all 0.2s ease', minHeight: 42 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'var(--text-primary)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)' }}
               >
@@ -81,22 +88,100 @@ export default function Sidebar({ collapsed = false, onClose, activePage, onNavi
         </>
       )}
 
-      {/* User card */}
-      <GlassCard padding="10px 12px" radius={14} hoverable={false} style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 10, justifyContent: collapsed ? 'center' : 'flex-start', boxShadow: '0 2px 12px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
-        <div style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, background: 'var(--accent-grad)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#08121f' }}>S</div>
-        {!collapsed && (
-          <>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', margin: 0 }}>Sagar</p>
-              <p style={{ fontSize: 10, color: 'var(--accent-primary)', margin: 0 }}>Premium ✦</p>
-            </div>
-            <button style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 15, cursor: 'pointer', transition: 'color 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-            >⚙</button>
-          </>
-        )}
-      </GlassCard>
+      {/* User card with logout */}
+      <div style={{ marginTop: 16, position: 'relative' }}>
+        <GlassCard
+          padding="10px 12px" radius={14} hoverable={!collapsed}
+          onClick={() => !collapsed && setShowLogout(s => !s)}
+          style={{
+            display: 'flex', alignItems: 'center',
+            gap: collapsed ? 0 : 10,
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.05)',
+            cursor: collapsed ? 'default' : 'pointer',
+          }}
+        >
+          {/* Avatar circle */}
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+            background: 'var(--accent-grad)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, fontWeight: 700, color: '#08121f',
+          }}>
+            {user?.avatar || '?'}
+          </div>
+
+          {!collapsed && (
+            <>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {user?.name || 'Guest'}
+                </p>
+                <p style={{ fontSize: 10, color: 'var(--accent-primary)', margin: 0 }}>Premium ✦</p>
+              </div>
+              <motion.span
+                animate={{ rotate: showLogout ? 180 : 0 }}
+                style={{ color: 'var(--text-muted)', fontSize: 12, flexShrink: 0 }}
+              >
+                ▾
+              </motion.span>
+            </>
+          )}
+        </GlassCard>
+
+        {/* Logout dropdown */}
+        <AnimatePresence>
+          {showLogout && !collapsed && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{   opacity: 0, y: 6, scale: 0.97 }}
+              transition={{ duration: 0.18 }}
+              style={{
+                position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, right: 0,
+                background: 'rgba(8,12,20,0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: 14, overflow: 'hidden',
+                boxShadow: '0 -12px 32px rgba(0,0,0,0.35)',
+                zIndex: 10,
+              }}
+            >
+              {/* User info row */}
+              <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{user?.name}</p>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{user?.email}</p>
+              </div>
+
+              {/* Actions */}
+              {[
+                { icon: '⚙', label: 'Settings' },
+                { icon: '🔒', label: 'Sign Out', danger: true, action: logout },
+              ].map(item => (
+                <button
+                  key={item.label}
+                  onClick={() => { item.action?.(); setShowLogout(false) }}
+                  style={{
+                    width: '100%', padding: '11px 14px',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: item.danger ? '#f87171' : 'var(--text-secondary)',
+                    fontSize: 13, fontFamily: 'var(--font-body)',
+                    textAlign: 'left', transition: 'background 0.15s, color 0.15s',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = item.danger ? 'rgba(248,113,113,0.08)' : 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = item.danger ? '#f87171' : 'var(--text-primary)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = item.danger ? '#f87171' : 'var(--text-secondary)' }}
+                >
+                  <span style={{ fontSize: 15, width: 20, textAlign: 'center' }}>{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
     </div>
   )
 }
