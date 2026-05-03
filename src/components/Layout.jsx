@@ -11,6 +11,9 @@ import DiscoverPage from '../pages/DiscoverPage'
 import LibraryPage from '../pages/LibraryPage'
 import LikedPage from '../pages/LikedPage'
 import PlaylistsPage from '../pages/PlaylistsPage'
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
+import KeyFlash    from './KeyFlash'
+import CheatSheet  from './CheatSheet'
 
 function PageRouter({ page, screenSize }) {
   const props = { screenSize }
@@ -27,6 +30,7 @@ export default function Layout() {
   const [screen,         setScreen]         = useState('desktop')
   const [nowPlayingOpen, setNowPlayingOpen] = useState(false)
   const [activePage,     setActivePage]     = useState('Home')
+  const [showCheatSheet, setShowCheatSheet] = useState(false)
 
   useEffect(() => {
     const upd = () => {
@@ -37,6 +41,8 @@ export default function Layout() {
     window.addEventListener('resize', upd)
     return () => window.removeEventListener('resize', upd)
   }, [])
+
+  useKeyboardShortcuts({ setShowCheatSheet, setNowPlayingOpen })
 
   const isMobile  = screen === 'mobile'
   const isTablet  = screen === 'tablet'
