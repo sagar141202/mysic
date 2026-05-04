@@ -1,3 +1,81 @@
+#!/usr/bin/env bash
+# =============================================================================
+#  fix-progress-tracking.sh — Mysic · Real YouTube Progress Tracking
+#
+#  Run from the ROOT of your mysic repo:
+#    bash fix-progress-tracking.sh
+#
+#  What this fixes
+#  ───────────────
+#  BEFORE: usePlayer runs setInterval and adds  prog += (100 / duration) * 0.25
+#          every 250 ms.  After any seek the accumulator continues from the
+#          wrong baseline — UI and audio drift apart permanently.
+#
+#  AFTER:  startTick polls window.__ytPlayer.getCurrentTime() every 250 ms and
+#          sets progress = (currentTime / duration) * 100  — always in sync.
+#          onStateChange(0) from the YT iframe fires playNext() directly instead
+#          of the fake timer racing to 100 %.
+# =============================================================================
+set -e
+
+CYAN='\033[0;36m'; GREEN='\033[0;32m'
+YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
+
+log()  { echo -e "${CYAN}[mysic]${RESET} $1"; }
+ok()   { echo -e "${GREEN}  ✓${RESET} $1"; }
+warn() { echo -e "${YELLOW}  ⚠${RESET} $1"; }
+die()  { echo -e "${RED}  ✗ $1${RESET}"; exit 1; }
+
+echo ""
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${CYAN}║   Mysic — Real YouTube Progress Tracking Fix             ║${RESET}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${RESET}"
+echo ""
+
+[ -f "package.json" ] || die "Run from the repo root (package.json not found)"
+log "Repo root confirmed"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers: find a file across common locations
+# ─────────────────────────────────────────────────────────────────────────────
+find_file() {
+  # Usage: find_file "usePlayer.jsx" "src/hooks" "hooks"
+  local name="$1"; shift
+  for dir in "$@"; do
+    local p="${dir}/${name}"
+    if [ -f "$p" ]; then echo "$p"; return; fi
+  done
+  echo ""
+}
+
+backup() {
+  local f="$1"
+  if [ -f "$f" ]; then
+    cp "$f" "${f}.bak"
+    ok "Backed up → ${f}.bak"
+  fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.  usePlayer.jsx  — THE CORE FIX
+# ─────────────────────────────────────────────────────────────────────────────
+log "Locating usePlayer.jsx …"
+
+USE_PLAYER=""
+for p in src/hooks/usePlayer.jsx src/hooks/usePlayer.js hooks/usePlayer.jsx hooks/usePlayer.js; do
+  [ -f "$p" ] && USE_PLAYER="$p" && break
+done
+
+if [ -z "$USE_PLAYER" ]; then
+  warn "usePlayer not found — will create at src/hooks/usePlayer.jsx"
+  mkdir -p src/hooks
+  USE_PLAYER="src/hooks/usePlayer.jsx"
+else
+  backup "$USE_PLAYER"
+fi
+
+log "Writing ${USE_PLAYER} …"
+cat > "$USE_PLAYER" << 'USEPLAYEREOF'
 /**
  * usePlayer.jsx — Mysic global player context
  *
@@ -342,3 +420,142 @@ export function usePlayer() {
   if (!ctx) throw new Error('usePlayer must be used inside <PlayerProvider>')
   return ctx
 }
+USEPLAYEREOF
+ok "${USE_PLAYER} written"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2.  YouTubePlayer.jsx  — wire _onEnded into onStateChange(0)
+# ─────────────────────────────────────────────────────────────────────────────
+log "Locating YouTubePlayer.jsx …"
+
+YTP=""
+for p in src/components/YouTubePlayer.jsx src/components/YouTubePlayer.js components/YouTubePlayer.jsx; do
+  [ -f "$p" ] && YTP="$p" && break
+done
+
+# Also check the uploads copy for the path pattern
+if [ -z "$YTP" ]; then
+  warn "YouTubePlayer.jsx not found at common paths — will create at src/components/YouTubePlayer.jsx"
+  mkdir -p src/components
+  YTP="src/components/YouTubePlayer.jsx"
+else
+  backup "$YTP"
+fi
+
+log "Writing ${YTP} …"
+cat > "$YTP" << 'YTPEOF'
+/**
+ * YouTubePlayer.jsx — invisible iframe, audio engine for Mysic.
+ *
+ * Changes from original:
+ *   • Imports _onEnded from usePlayer — onStateChange(0) calls it directly
+ *     instead of letting the fake setInterval race to 100 %.
+ *   • onError still auto-advances on unplayable videos (101/150).
+ *   • No other behavioural changes — play/pause/seek still happen in
+ *     click handlers, never in useEffect.
+ */
+import { useEffect, useRef } from 'react'
+import { usePlayer } from '../hooks/usePlayer.jsx'
+
+export default function YouTubePlayer() {
+  const { currentSong, volume, _setYtReady, _onEnded, playNext } = usePlayer()
+  const initializing = useRef(false)
+
+  useEffect(() => {
+    /* Inject the IFrame API script once */
+    if (!document.getElementById('yt-iframe-api')) {
+      const tag   = document.createElement('script')
+      tag.id      = 'yt-iframe-api'
+      tag.src     = 'https://www.youtube.com/iframe_api'
+      tag.async   = true
+      document.head.appendChild(tag)
+    }
+
+    const init = () => {
+      if (initializing.current || window.__ytPlayer) return
+      initializing.current = true
+
+      window.__ytPlayer = new window.YT.Player('yt-hidden-player', {
+        height:    '1',
+        width:     '1',
+        videoId:   currentSong?.youtubeId || '',
+        playerVars: {
+          autoplay:       0,
+          controls:       0,
+          disablekb:      1,
+          fs:             0,
+          iv_load_policy: 3,
+          modestbranding: 1,
+          playsinline:    1,
+          rel:            0,
+          origin:         window.location.origin,
+        },
+        events: {
+          onReady: (e) => {
+            e.target.setVolume(volume)
+            _setYtReady(true)
+            console.log('[YT] Ready ✅  origin:', window.location.origin)
+          },
+
+          onError: (e) => {
+            console.warn('[YT] error code:', e.data)
+            /* 101/150 = embed not allowed; 2/5/100 = bad video */
+            if ([2, 5, 100, 101, 150].includes(e.data)) playNext()
+          },
+
+          onStateChange: (e) => {
+            if (e.data === window.YT.PlayerState.ENDED) {
+              /* ── REAL end-of-track signal — advance queue immediately ── */
+              _onEnded()
+            }
+          },
+        },
+      })
+    }
+
+    if (window.YT?.Player) {
+      init()
+    } else {
+      const prev = window.onYouTubeIframeAPIReady
+      window.onYouTubeIframeAPIReady = () => { prev?.(); init() }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div style={{
+      position: 'fixed', left: '-9999px', bottom: 0,
+      width: 1, height: 1, overflow: 'hidden',
+      pointerEvents: 'none', zIndex: -1, opacity: 0,
+    }}>
+      <div id="yt-hidden-player" />
+    </div>
+  )
+}
+YTPEOF
+ok "${YTP} written"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.  Summary
+# ─────────────────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${GREEN}║  Done! Files written:                                    ║${RESET}"
+echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
+printf "${GREEN}║  %-56s║${RESET}\n" "${USE_PLAYER}  (backup: .bak)"
+printf "${GREEN}║  %-56s║${RESET}\n" "${YTP}  (backup: .bak)"
+echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
+echo -e "${GREEN}║  What changed                                            ║${RESET}"
+echo -e "${GREEN}║  ✓ Progress polls getCurrentTime() — no more drift      ║${RESET}"
+echo -e "${GREEN}║  ✓ onStateChange(0) → _onEnded() → playNext()           ║${RESET}"
+echo -e "${GREEN}║  ✓ playPrev restarts track if > 3 s in (Spotify UX)     ║${RESET}"
+echo -e "${GREEN}║  ✓ Shuffle + Repeat wired up (were dummy buttons before) ║${RESET}"
+echo -e "${GREEN}║  ✓ recentlyPlayed persisted to localStorage             ║${RESET}"
+echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
+echo -e "${GREEN}║  Next steps                                              ║${RESET}"
+echo -e "${GREEN}║  1.  npm run dev  — verify scrubber tracks audio exactly ║${RESET}"
+echo -e "${GREEN}║  2.  Seek mid-song — confirm UI jumps & stays correct    ║${RESET}"
+echo -e "${GREEN}║  3.  Let a song finish — confirm auto-advance fires once ║${RESET}"
+echo -e "${GREEN}║  4.  git add -A && git commit -m 'fix: real yt progress' ║${RESET}"
+echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${RESET}"
+echo ""
+USEPLAYEREOF

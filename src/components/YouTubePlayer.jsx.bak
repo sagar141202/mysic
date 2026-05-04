@@ -1,27 +1,21 @@
 /**
- * YouTubePlayer.jsx — invisible iframe, audio engine for Mysic.
- *
- * Changes from original:
- *   • Imports _onEnded from usePlayer — onStateChange(0) calls it directly
- *     instead of letting the fake setInterval race to 100 %.
- *   • onError still auto-advances on unplayable videos (101/150).
- *   • No other behavioural changes — play/pause/seek still happen in
- *     click handlers, never in useEffect.
+ * YouTubePlayer — invisible iframe, only handles init + error/end events.
+ * Play/pause/seek/load are now called directly in usePlayer gesture handlers.
  */
 import { useEffect, useRef } from 'react'
 import { usePlayer } from '../hooks/usePlayer.jsx'
 
 export default function YouTubePlayer() {
-  const { currentSong, volume, _setYtReady, _onEnded, playNext } = usePlayer()
+  const { currentSong, volume, _setYtReady, playNext } = usePlayer()
   const initializing = useRef(false)
 
   useEffect(() => {
-    /* Inject the IFrame API script once */
+    /* inject script once */
     if (!document.getElementById('yt-iframe-api')) {
-      const tag   = document.createElement('script')
-      tag.id      = 'yt-iframe-api'
-      tag.src     = 'https://www.youtube.com/iframe_api'
-      tag.async   = true
+      const tag = document.createElement('script')
+      tag.id    = 'yt-iframe-api'
+      tag.src   = 'https://www.youtube.com/iframe_api'
+      tag.async = true
       document.head.appendChild(tag)
     }
 
@@ -32,7 +26,7 @@ export default function YouTubePlayer() {
       window.__ytPlayer = new window.YT.Player('yt-hidden-player', {
         height:    '1',
         width:     '1',
-        videoId:   currentSong?.youtubeId || '',
+        videoId:   currentSong.youtubeId,
         playerVars: {
           autoplay:       0,
           controls:       0,
@@ -50,18 +44,14 @@ export default function YouTubePlayer() {
             _setYtReady(true)
             console.log('[YT] Ready ✅  origin:', window.location.origin)
           },
-
           onError: (e) => {
-            console.warn('[YT] error code:', e.data)
-            /* 101/150 = embed not allowed; 2/5/100 = bad video */
+            console.warn('[YT] error code:', e.data, '— skipping')
+            /* 101/150 = embed not allowed for this video */
             if ([2, 5, 100, 101, 150].includes(e.data)) playNext()
           },
-
           onStateChange: (e) => {
-            if (e.data === window.YT.PlayerState.ENDED) {
-              /* ── REAL end-of-track signal — advance queue immediately ── */
-              _onEnded()
-            }
+            /* 0 = ended */
+            if (e.data === 0) playNext()
           },
         },
       })
