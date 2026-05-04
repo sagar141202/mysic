@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/ytproxy/:path*",
+      "destination": "/api/ytproxy"
+    }
+  ]
+}
