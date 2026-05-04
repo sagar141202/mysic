@@ -81,7 +81,7 @@ const PLAYLISTS = [
   {
     id: 'indie-vibes',
     name: 'Indie Vibes',
-    description: "Underground gems you haven't heard yet",
+    description: 'Underground gems you haven\'t heard yet',
     icon: '🎸',
     color: '#f97316',
     gradient: 'linear-gradient(135deg, #1a0e00 0%, #100800 100%)',
@@ -197,7 +197,7 @@ function PlaylistCard({ playlist, onClick, isActive }) {
   )
 }
 
-/* ── Skeleton loader ─────────────────────────────────────── */
+/* ── Song count badge ────────────────────────────────── */
 function LoadingRows() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -217,11 +217,11 @@ function LoadingRows() {
   )
 }
 
-/* ── Main Page ────────────────────────────────────────────── */
+/* ── Main Page ────────────────────────────────────────── */
 export default function PlaylistsPage({ screenSize }) {
   const { playSong } = usePlayer()
   const [selected, setSelected] = useState(null)
-  const [songsMap, setSongsMap]  = useState({})
+  const [songsMap, setSongsMap]  = useState({})  // playlistId → songs[]
   const [loading, setLoading]    = useState(false)
   const [error, setError]        = useState(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -231,6 +231,7 @@ export default function PlaylistsPage({ screenSize }) {
 
   const fetchPlaylist = useCallback(async (playlist, force = false) => {
     const cached = cacheRef.current[playlist.id]
+    // Use cache if fresh (< 30 min) and not forced
     if (!force && cached && Date.now() - cached.ts < 30 * 60 * 1000) {
       setSongsMap(prev => ({ ...prev, [playlist.id]: cached.songs }))
       return
@@ -241,8 +242,11 @@ export default function PlaylistsPage({ screenSize }) {
     try {
       const songs = await searchYouTube(playlist.query)
       const sliced = songs.slice(0, playlist.count)
+
+      // Update cache
       cacheRef.current[playlist.id] = { songs: sliced, ts: Date.now() }
       saveCache(cacheRef.current)
+
       setSongsMap(prev => ({ ...prev, [playlist.id]: sliced }))
     } catch (e) {
       setError('Failed to load songs. Check your connection and try again.')
@@ -252,6 +256,7 @@ export default function PlaylistsPage({ screenSize }) {
     }
   }, [])
 
+  // Fetch when a playlist is selected
   useEffect(() => {
     if (!selected) return
     fetchPlaylist(selected)
@@ -286,7 +291,12 @@ export default function PlaylistsPage({ screenSize }) {
         scrollbarWidth: 'none',
         height: isMobile && selected ? '50%' : '100%',
       }}>
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 22 }}>
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ marginBottom: 22 }}
+        >
           <h2 style={{
             fontFamily: 'var(--font-display)',
             fontSize: isMobile ? 20 : 24,
@@ -300,6 +310,7 @@ export default function PlaylistsPage({ screenSize }) {
           </p>
         </motion.div>
 
+        {/* Grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: selected && !isMobile
@@ -317,6 +328,7 @@ export default function PlaylistsPage({ screenSize }) {
               transition={{ delay: i * 0.04, duration: 0.28, ease: EASE }}
             >
               {selected && !isMobile ? (
+                /* Compact list item when a playlist is open */
                 <motion.div
                   onClick={() => setSelected(pl)}
                   whileHover={{ x: 3 }}
@@ -416,12 +428,16 @@ export default function PlaylistsPage({ screenSize }) {
                 </div>
               </div>
 
+              {/* Action buttons */}
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                {/* Refresh */}
                 <motion.button
                   onClick={handleRefresh}
                   disabled={loading}
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: 0.92 }}
+                  animate={refreshing ? { rotate: 360 } : {}}
+                  transition={refreshing ? { duration: 1, repeat: Infinity, ease: 'linear' } : {}}
                   title="Refresh songs"
                   style={{
                     width: 36, height: 36, borderRadius: '50%',
@@ -436,6 +452,7 @@ export default function PlaylistsPage({ screenSize }) {
                   ↻
                 </motion.button>
 
+                {/* Play all */}
                 {selectedSongs.length > 0 && (
                   <motion.button
                     onClick={() => playSong(selectedSongs[0], selectedSongs)}
@@ -455,6 +472,7 @@ export default function PlaylistsPage({ screenSize }) {
                   </motion.button>
                 )}
 
+                {/* Close on mobile */}
                 {isMobile && (
                   <motion.button
                     onClick={() => setSelected(null)}
@@ -476,7 +494,8 @@ export default function PlaylistsPage({ screenSize }) {
 
             {/* Live badge */}
             <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 padding: '5px 12px', borderRadius: 20, marginBottom: 16, alignSelf: 'flex-start',
@@ -498,9 +517,11 @@ export default function PlaylistsPage({ screenSize }) {
               </span>
             </motion.div>
 
+            {/* Error state */}
             {error && !loading && (
               <motion.div
-                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
                 style={{
                   padding: '20px', borderRadius: 14, textAlign: 'center',
                   background: 'rgba(239,68,68,0.07)',
@@ -524,16 +545,22 @@ export default function PlaylistsPage({ screenSize }) {
               </motion.div>
             )}
 
+            {/* Songs */}
             {loading && selectedSongs.length === 0 ? (
               <LoadingRows />
             ) : (
               <SongList songs={selectedSongs} showIndex />
             )}
 
+            {/* Refreshing overlay */}
             {refreshing && selectedSongs.length > 0 && (
               <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                style={{ position: 'sticky', bottom: 16, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                style={{
+                  position: 'sticky', bottom: 16, left: 0, right: 0,
+                  display: 'flex', justifyContent: 'center',
+                }}
               >
                 <div style={{
                   padding: '8px 16px', borderRadius: 20,
@@ -557,6 +584,11 @@ export default function PlaylistsPage({ screenSize }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Empty state when nothing is selected (full width) ── */}
+      {!selected && !isMobile && (
+        <div /> /* grid handles layout when selected=null */
+      )}
     </div>
   )
 }

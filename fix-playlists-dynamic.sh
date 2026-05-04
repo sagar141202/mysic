@@ -1,3 +1,44 @@
+#!/usr/bin/env bash
+# fix-playlists-dynamic.sh
+# ─────────────────────────────────────────────────────────────────────────────
+# Replaces the static PlaylistsPage with a fully dynamic version that fetches
+# real songs from YouTube via the same ytSearch proxy used by search/discover.
+#
+# What this does:
+#   1. Backs up the existing PlaylistsPage (if any)
+#   2. Writes the new dynamic PlaylistsPage.jsx
+#   3. Verifies ytSearch exports searchYouTube (adds alias if missing)
+#
+# Usage:
+#   chmod +x fix-playlists-dynamic.sh
+#   ./fix-playlists-dynamic.sh
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -e
+
+PAGES_DIR="src/pages"
+TARGET="$PAGES_DIR/PlaylistsPage.jsx"
+YT_SEARCH="src/utils/ytSearch.js"
+
+echo "🎵  Mysic — Dynamic Playlists Fix"
+echo "───────────────────────────────────────"
+
+# ── 0. Ensure we're in the project root ──────────────────────────────────────
+if [ ! -f "package.json" ]; then
+  echo "❌  Run this script from the Mysic project root (where package.json lives)."
+  exit 1
+fi
+
+# ── 1. Backup existing PlaylistsPage ─────────────────────────────────────────
+if [ -f "$TARGET" ]; then
+  cp "$TARGET" "${TARGET}.bak"
+  echo "✅  Backed up existing PlaylistsPage → ${TARGET}.bak"
+fi
+
+mkdir -p "$PAGES_DIR"
+
+# ── 2. Write new PlaylistsPage.jsx ───────────────────────────────────────────
+cat > "$TARGET" << 'PLAYLIST_EOF'
 /**
  * PlaylistsPage.jsx — Dynamic playlists powered by live YouTube search.
  *
@@ -560,3 +601,49 @@ export default function PlaylistsPage({ screenSize }) {
     </div>
   )
 }
+PLAYLIST_EOF
+
+echo "✅  Wrote new PlaylistsPage → $TARGET"
+
+# ── 3. Ensure ytSearch exports searchYouTube ─────────────────────────────────
+# The new page imports { searchYouTube } from ytSearch.js.
+# Most versions of ytSearch already export a function that does a YouTube
+# search by keyword.  We check for common export names and add an alias if
+# the named export doesn't exist yet.
+
+if [ -f "$YT_SEARCH" ]; then
+  if ! grep -q "searchYouTube" "$YT_SEARCH"; then
+    # Detect existing export name — common variants
+    EXISTING=$(grep -oP "export (async )?function \K\w+" "$YT_SEARCH" | head -1)
+    if [ -z "$EXISTING" ]; then
+      EXISTING=$(grep -oP "export (const|let) \K\w+" "$YT_SEARCH" | head -1)
+    fi
+
+    if [ -n "$EXISTING" ]; then
+      echo "" >> "$YT_SEARCH"
+      echo "// Alias added by fix-playlists-dynamic.sh" >> "$YT_SEARCH"
+      echo "export const searchYouTube = $EXISTING" >> "$YT_SEARCH"
+      echo "✅  Added searchYouTube alias → $EXISTING (in $YT_SEARCH)"
+    else
+      echo "⚠️  Could not auto-detect export in $YT_SEARCH."
+      echo "    Please add manually:  export { yourSearchFn as searchYouTube }"
+    fi
+  else
+    echo "✅  ytSearch.js already exports searchYouTube — no changes needed."
+  fi
+else
+  echo "⚠️  $YT_SEARCH not found. Make sure ytSearch exports:"
+  echo "    export async function searchYouTube(query) { ... }"
+fi
+
+echo ""
+echo "───────────────────────────────────────"
+echo "🚀  Done! Restart the dev server:"
+echo "    npm run dev"
+echo ""
+echo "How it works:"
+echo "  • Click any playlist card → songs are fetched live from YouTube"
+echo "  • Results are cached in localStorage for 30 minutes"
+echo "  • Hit ↻ to force-refresh with fresh songs"
+echo "  • 'Play All' loads the entire playlist into the queue"
+echo "  • 8 curated playlists with genre-specific search queries"
