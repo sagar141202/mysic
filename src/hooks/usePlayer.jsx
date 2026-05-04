@@ -1,19 +1,21 @@
 /**
  * usePlayer.jsx — Mysic global player context
  *
- * KEY FIX (progress tracking):
- *   BEFORE: setInterval accumulated  prog += 100/duration  every 250 ms.
- *           After a seek the tick kept adding from the old number → drift.
- *   AFTER:  startTick polls window.__ytPlayer.getCurrentTime() every 250 ms.
- *           progress = (currentTime / duration) * 100  — always real, never drifts.
+ * STORAGE FORMAT (restored to original contract):
+ *   localStorage key  "mysic_liked"  →  array of full song objects
+ *   [ { id, title, artist, duration, thumbnail, color, youtubeId }, ... ]
  *
- * KEY FIX (track-end detection):
- *   BEFORE: fake timer raced to 100 % and hoped to call playNext in time.
- *   AFTER:  YouTubePlayer's onStateChange(0) calls the exported _onEnded()
- *           callback directly — no guessing, no gap.
+ *   The Set<id> used by liked.has() is derived from this array, not stored
+ *   separately. This is what LikedPage and every other component expects.
  *
- * Everything else (queue, liked, volume, seek, shuffle, repeat) is unchanged
- * from the original API surface so no other component needs editing.
+ * CONTEXT ADDITIONS vs original:
+ *   likedSongs  — array of full song objects in like order (newest first)
+ *   shuffle, repeat, toggleShuffle, toggleRepeat — wired up
+ *   recentlyPlayed — persisted array
+ *   _onEnded — called by YouTubePlayer onStateChange(0)
+ *
+ * PROGRESS FIX (from fix-progress-tracking.sh, kept):
+ *   startTick polls getCurrentTime() instead of accumulating a fake counter.
  */
 
 import {
@@ -22,18 +24,27 @@ import {
 } from 'react'
 import { SONGS } from '../data/songs'
 
-/* ── Liked songs persistence ─────────────────────────────── */
-function loadLiked() {
+/* ── Liked songs — stored as full song objects ───────────── */
+function loadLikedSongs() {
   try {
     const raw = localStorage.getItem('mysic_liked')
-    return raw ? new Set(JSON.parse(raw)) : new Set()
-  } catch { return new Set() }
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    // Handle legacy format: if array contains plain strings (IDs), discard
+    if (!Array.isArray(parsed)) return []
+    if (parsed.length > 0 && typeof parsed[0] === 'string') {
+      // Old ID-only format from the broken fix — migrate to empty, user re-likes
+      localStorage.removeItem('mysic_liked')
+      return []
+    }
+    return parsed // array of full song objects
+  } catch { return [] }
 }
-function saveLiked(set) {
-  try { localStorage.setItem('mysic_liked', JSON.stringify([...set])) } catch {}
+function saveLikedSongs(arr) {
+  try { localStorage.setItem('mysic_liked', JSON.stringify(arr)) } catch {}
 }
 
-/* ── Recently played persistence ────────────────────────── */
+/* ── Recently played ─────────────────────────────────────── */
 function loadRecent() {
   try {
     const raw = localStorage.getItem('mysic_recent')
@@ -52,21 +63,23 @@ const DEFAULT_SONG = SONGS?.[0] || {
   artist: '', duration: 0, thumbnail: '', color: '#8b5cf6',
 }
 
-/* ─────────────────────────────────────────────────────────── */
 export function PlayerProvider({ children }) {
-  const [currentSong, setCurrentSong] = useState(DEFAULT_SONG)
-  const [queue,       setQueue]       = useState(SONGS || [])
-  const [isPlaying,   setIsPlaying]   = useState(false)
-  const [progress,    setProgress]    = useState(0)     // 0-100
-  const [volume,      setVolVol]      = useState(80)
-  const [liked,       setLiked]       = useState(loadLiked)
-  const [ytReady,     setYtReady]     = useState(false)
-  const [shuffle,     setShuffle]     = useState(false)
-  const [repeat,      setRepeat]      = useState(false) // 'none'|'one'|'all' — start simple
+  const [currentSong,    setCurrentSong]    = useState(DEFAULT_SONG)
+  const [queue,          setQueue]          = useState(SONGS || [])
+  const [isPlaying,      setIsPlaying]      = useState(false)
+  const [progress,       setProgress]       = useState(0)
+  const [volume,         setVolVol]         = useState(80)
+  const [likedSongs,     setLikedSongs]     = useState(loadLikedSongs)   // full objects
+  const [ytReady,        setYtReady]        = useState(false)
+  const [shuffle,        setShuffle]        = useState(false)
+  const [repeat,         setRepeat]         = useState(false)
   const [recentlyPlayed, setRecentlyPlayed] = useState(loadRecent)
 
-  /* Internal refs — never trigger re-renders */
-  const tickRef        = useRef(null)   // setInterval id
+  /* Derived: Set of liked IDs — used for liked.has(id) throughout the UI */
+  const liked = new Set(likedSongs.map(s => s.id))
+
+  /* Refs — never trigger re-renders */
+  const tickRef        = useRef(null)
   const currentSongRef = useRef(currentSong)
   const isPlayingRef   = useRef(false)
   const progressRef    = useRef(0)
@@ -74,7 +87,6 @@ export function PlayerProvider({ children }) {
   const repeatRef      = useRef(false)
   const queueRef       = useRef(queue)
 
-  /* Keep refs in sync */
   useEffect(() => { currentSongRef.current = currentSong }, [currentSong])
   useEffect(() => { isPlayingRef.current   = isPlaying   }, [isPlaying])
   useEffect(() => { progressRef.current    = progress    }, [progress])
@@ -82,7 +94,7 @@ export function PlayerProvider({ children }) {
   useEffect(() => { repeatRef.current      = repeat      }, [repeat])
   useEffect(() => { queueRef.current       = queue       }, [queue])
 
-  /* ── YT helper — safe call ───────────────────────────── */
+  /* ── YT safe-call helper ─────────────────────────────── */
   const yt = useCallback((method, ...args) => {
     try {
       const p = window.__ytPlayer
@@ -92,7 +104,7 @@ export function PlayerProvider({ children }) {
     }
   }, [])
 
-  /* ── Tick: polls real YT position ───────────────────── */
+  /* ── Progress tick — polls real YT position ──────────── */
   const stopTick = useCallback(() => {
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null }
   }, [])
@@ -102,70 +114,51 @@ export function PlayerProvider({ children }) {
     tickRef.current = setInterval(() => {
       const song = currentSongRef.current
       if (!song?.duration || song.duration <= 0) return
-
-      /* ── REAL position from YouTube IFrame API ── */
       const currentTime = yt('getCurrentTime') ?? 0
-
       const pct = Math.min(100, (currentTime / song.duration) * 100)
       setProgress(pct)
       progressRef.current = pct
-
-      /* Safety net: if YT hasn't fired onStateChange(0) yet */
       if (pct >= 99.5 && isPlayingRef.current) {
         stopTick()
-        // onStateChange(0) handler (_onEnded) will call playNext — avoid double
-        // Only call playNext here if onStateChange never arrives (rare edge case)
         setTimeout(() => {
-          if (progressRef.current >= 99.5 && isPlayingRef.current) {
-            playNextInternal()
-          }
+          if (progressRef.current >= 99.5 && isPlayingRef.current) playNextInternal()
         }, 1500)
       }
     }, 250)
   }, [stopTick, yt])
 
-  /* ── Load + play a video ────────────────────────────── */
+  /* ── Load + play a video ─────────────────────────────── */
   const loadAndPlay = useCallback((song) => {
     if (!song?.youtubeId) return
     stopTick()
-    setProgress(0)
-    progressRef.current = 0
-
+    setProgress(0); progressRef.current = 0
     const doLoad = () => {
       yt('loadVideoById', song.youtubeId)
-      /* volume is set in onReady; re-apply on each load */
       setTimeout(() => yt('setVolume', volume), 300)
     }
-
     if (window.__ytPlayer && ytReady) {
       doLoad()
     } else {
-      /* YT not ready yet — queue up */
       const handler = () => { doLoad(); window.removeEventListener('mysic:ytready', handler) }
       window.addEventListener('mysic:ytready', handler)
     }
   }, [stopTick, yt, volume, ytReady])
 
-  /* ── Next track logic (used by tick + onStateChange) ── */
+  /* ── Next track ──────────────────────────────────────── */
   const playNextInternal = useCallback(() => {
     const q    = queueRef.current
     const song = currentSongRef.current
     if (!q.length) return
-
     let nextSong
     if (repeatRef.current === 'one' || repeatRef.current === true) {
-      /* repeat one: replay same */
       nextSong = song
     } else if (shuffleRef.current) {
       const others = q.filter(s => s.id !== song.id)
-      nextSong = others.length
-        ? others[Math.floor(Math.random() * others.length)]
-        : song
+      nextSong = others.length ? others[Math.floor(Math.random() * others.length)] : song
     } else {
       const idx = q.findIndex(s => s.id === song.id)
       const nextIdx = (idx + 1) % q.length
       if (nextIdx === 0 && !repeatRef.current) {
-        /* end of queue, no repeat — stop */
         setIsPlaying(false); isPlayingRef.current = false
         setProgress(0); progressRef.current = 0
         stopTick(); yt('stopVideo')
@@ -173,7 +166,6 @@ export function PlayerProvider({ children }) {
       }
       nextSong = q[nextIdx]
     }
-
     setCurrentSong(nextSong)
     setIsPlaying(true); isPlayingRef.current = true
     setProgress(0); progressRef.current = 0
@@ -182,12 +174,10 @@ export function PlayerProvider({ children }) {
     addToRecent(nextSong)
   }, [loadAndPlay, startTick, stopTick, yt])
 
-  /* ── Exported: _onEnded — called by YouTubePlayer onStateChange(0) ── */
-  const _onEnded = useCallback(() => {
-    playNextInternal()
-  }, [playNextInternal])
+  /* ── _onEnded — called by YouTubePlayer onStateChange(0) ── */
+  const _onEnded = useCallback(() => playNextInternal(), [playNextInternal])
 
-  /* ── Exported: _setYtReady ───────────────────────────── */
+  /* ── _setYtReady ─────────────────────────────────────── */
   const _setYtReady = useCallback((val) => {
     setYtReady(val)
     if (val) {
@@ -199,8 +189,7 @@ export function PlayerProvider({ children }) {
   /* ── Recently played ─────────────────────────────────── */
   const addToRecent = useCallback((song) => {
     setRecentlyPlayed(prev => {
-      const filtered = prev.filter(s => s.id !== song.id)
-      const next = [song, ...filtered].slice(0, 20)
+      const next = [song, ...prev.filter(s => s.id !== song.id)].slice(0, 20)
       saveRecent(next)
       return next
     })
@@ -231,24 +220,19 @@ export function PlayerProvider({ children }) {
   }, [yt, stopTick, startTick])
 
   /* ── playNext ────────────────────────────────────────── */
-  const playNext = useCallback(() => {
-    playNextInternal()
-  }, [playNextInternal])
+  const playNext = useCallback(() => playNextInternal(), [playNextInternal])
 
   /* ── playPrev ────────────────────────────────────────── */
   const playPrev = useCallback(() => {
-    const q   = queueRef.current
+    const q    = queueRef.current
     const song = currentSongRef.current
     if (!q.length) return
-
-    /* If more than 3 s in, restart current track */
     const currentTime = yt('getCurrentTime') ?? 0
     if (currentTime > 3) {
       yt('seekTo', 0, true)
       setProgress(0); progressRef.current = 0
       return
     }
-
     const idx  = q.findIndex(s => s.id === song.id)
     const prev = q[(idx - 1 + q.length) % q.length]
     setCurrentSong(prev)
@@ -263,9 +247,7 @@ export function PlayerProvider({ children }) {
   const seek = useCallback((pct) => {
     const song = currentSongRef.current
     if (!song?.duration) return
-    const targetSec = (pct / 100) * song.duration
-    yt('seekTo', targetSec, true)
-    /* Optimistic UI update — tick will correct on next poll */
+    yt('seekTo', (pct / 100) * song.duration, true)
     setProgress(pct); progressRef.current = pct
   }, [yt])
 
@@ -273,27 +255,22 @@ export function PlayerProvider({ children }) {
   const setVolume = useCallback((pct) => {
     setVolVol(pct)
     yt('setVolume', pct)
-    if (pct === 0) yt('mute')
-    else           yt('unMute')
+    if (pct === 0) yt('mute'); else yt('unMute')
   }, [yt])
 
-  /* ── toggleLike ──────────────────────────────────────── */
+  /* ── toggleLike — stores full song objects ───────────── */
   const toggleLike = useCallback((id, song) => {
-    setLiked(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else {
-        next.add(id)
-        if (song) {
-          /* persist full song object for LikedPage */
-          try {
-            const stored = JSON.parse(localStorage.getItem('mysic_liked_songs') || '[]')
-            const exists = stored.find(s => s.id === id)
-            if (!exists) localStorage.setItem('mysic_liked_songs', JSON.stringify([song, ...stored]))
-          } catch {}
-        }
+    setLikedSongs(prev => {
+      let next
+      if (prev.find(s => s.id === id)) {
+        // Unlike: remove the object
+        next = prev.filter(s => s.id !== id)
+      } else {
+        // Like: prepend full song object (fall back to minimal shape if missing)
+        const obj = song || { id, title: id, artist: '', duration: 0, thumbnail: '', color: '#8b5cf6' }
+        next = [obj, ...prev]
       }
-      saveLiked(next)
+      saveLikedSongs(next)
       return next
     })
   }, [])
@@ -303,31 +280,27 @@ export function PlayerProvider({ children }) {
     setShuffle(v => { shuffleRef.current = !v; return !v })
   }, [])
 
-  /* ── toggleRepeat ────────────────────────────────────── */
+  /* ── toggleRepeat — cycles off → all → one ───────────── */
   const toggleRepeat = useCallback(() => {
     setRepeat(v => {
-      // Cycle: false → 'all' → 'one' → false
       const next = v === false ? 'all' : v === 'all' ? 'one' : false
       repeatRef.current = next
       return next
     })
   }, [])
 
-  /* ── Cleanup on unmount ──────────────────────────────── */
+  /* ── Cleanup ─────────────────────────────────────────── */
   useEffect(() => () => stopTick(), [stopTick])
 
   /* ── Context value ───────────────────────────────────── */
   const value = {
-    /* state */
     currentSong, queue, isPlaying, progress, volume,
-    liked, ytReady, shuffle, repeat, recentlyPlayed,
-    /* actions */
+    liked,        // Set<id>  — for liked.has(id) checks
+    likedSongs,   // Song[]   — for LikedPage rendering
+    ytReady, shuffle, repeat, recentlyPlayed,
     playSong, togglePlay, playNext, playPrev,
     seek, setVolume, toggleLike, toggleShuffle, toggleRepeat,
-    /* internal — used by YouTubePlayer only */
-    _setYtReady, _onEnded,
-    /* legacy alias used by YouTubePlayer */
-    _setYtReady,
+    _setYtReady, _onEnded,   // internal — YouTubePlayer only
   }
 
   return (
