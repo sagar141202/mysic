@@ -1,3 +1,58 @@
+#!/usr/bin/env bash
+# =============================================================================
+#  fix-player-toolbar.sh — Mysic · Clean Desktop Right Toolbar
+#
+#  Run from the ROOT of your mysic repo:
+#    bash fix-player-toolbar.sh
+#
+#  What this fixes (exact line references to the original Player.jsx)
+#  ──────────────────────────────────────────────────────────────────
+#  BUG 1  Lines 283-289  — two dead icon buttons (☰ ⊞) with no handlers,
+#                          mapped from a hardcoded array. Removed.
+#  BUG 2  Lines 291-308  — first mini-player button (&#x229F;). Kept as base.
+#  BUG 3  Lines 309-330  — DUPLICATE mini-player button added by a failed
+#                          patch script whose target string didn't match.
+#                          Removed entirely.
+#  BUG 4  Lines 197-199  — useSleepTimer() and [showTimer, timerMins] state
+#                          were declared but the SleepTimerMenu JSX was never
+#                          rendered anywhere. Now rendered.
+#  BUG 5  Line 182        — onAmbient prop accepted but never called. Now
+#                          wired to the ✦ ambient button in the toolbar.
+#
+#  RESULT: right toolbar = [ 🌙 sleep ] [ ✦ ambient ] [ ⊟ mini ] [ 🔊 vol ]
+# =============================================================================
+set -e
+
+CYAN='\033[0;36m'; GREEN='\033[0;32m'
+YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
+
+log()  { echo -e "${CYAN}[mysic]${RESET} $1"; }
+ok()   { echo -e "${GREEN}  ✓${RESET} $1"; }
+warn() { echo -e "${YELLOW}  ⚠${RESET} $1"; }
+die()  { echo -e "${RED}  ✗ $1${RESET}"; exit 1; }
+
+echo ""
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${CYAN}║   Mysic — Clean Desktop Right Toolbar                    ║${RESET}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${RESET}"
+echo ""
+
+[ -f "package.json" ] || die "Run from the repo root (package.json not found)"
+log "Repo root confirmed"
+
+# ── Locate Player.jsx ─────────────────────────────────────────────────────────
+PLAYER=""
+for p in src/components/Player.jsx src/components/Player.js components/Player.jsx; do
+  [ -f "$p" ] && PLAYER="$p" && break
+done
+[ -z "$PLAYER" ] && warn "Player.jsx not found — will create at src/components/Player.jsx" \
+  && mkdir -p src/components && PLAYER="src/components/Player.jsx"
+[ -f "$PLAYER" ] && cp "$PLAYER" "${PLAYER}.bak" && ok "Backed up → ${PLAYER}.bak"
+
+log "Writing clean ${PLAYER} …"
+
+# ── Write complete Player.jsx ─────────────────────────────────────────────────
+cat > "$PLAYER" << 'PLAYEREOF'
 /**
  * Player.jsx — Mysic bottom player bar
  *
@@ -530,3 +585,84 @@ export default function Player({
     </div>
   )
 }
+PLAYEREOF
+ok "${PLAYER} written"
+
+# ── Patch Layout.jsx to pass ambientActive prop ───────────────────────────────
+log "Locating Layout.jsx …"
+LAYOUT=""
+for p in src/components/Layout.jsx src/components/Layout.js components/Layout.jsx; do
+  [ -f "$p" ] && LAYOUT="$p" && break
+done
+
+if [ -z "$LAYOUT" ]; then
+  warn "Layout.jsx not found — skipping ambientActive prop patch (add it manually)"
+else
+  cp "$LAYOUT" "${LAYOUT}.bak"
+  ok "Backed up → ${LAYOUT}.bak"
+
+  # Check if ambientActive is already there
+  if grep -q "ambientActive" "$LAYOUT"; then
+    ok "ambientActive already present in Layout.jsx — no patch needed"
+  else
+    # Patch: add ambientActive={showAmbient} to every <Player ... onAmbient= line
+    # Use perl for reliable multi-line-safe replacement
+    perl -i -pe '
+      s|(onAmbient=\{[^}]+\})|$1 ambientActive={showAmbient}|g
+    ' "$LAYOUT"
+    ok "Patched Layout.jsx — added ambientActive={showAmbient} to <Player>"
+  fi
+fi
+
+# ── Verify useSleepTimer exports initialMins ─────────────────────────────────
+log "Checking useSleepTimer for initialMins export …"
+SLEEP_HOOK=""
+for p in src/hooks/useSleepTimer.js src/hooks/useSleepTimer.jsx hooks/useSleepTimer.js; do
+  [ -f "$p" ] && SLEEP_HOOK="$p" && break
+done
+
+if [ -z "$SLEEP_HOOK" ]; then
+  warn "useSleepTimer not found — Player.jsx uses { remaining, initialMins, start, cancel }"
+  warn "Make sure your hook exports those four values."
+else
+  if grep -q "initialMins" "$SLEEP_HOOK"; then
+    ok "useSleepTimer already exports initialMins"
+  else
+    warn "useSleepTimer does NOT export initialMins."
+    warn "SleepTimerMenu needs it for the countdown ring percentage."
+    warn "Add 'initialMins' to your useSleepTimer return value:"
+    echo ""
+    echo "  // inside useSleepTimer:"
+    echo "  const [initialMins, setInitialMins] = useState(null)"
+    echo "  // set it when startTimer(mins) is called"
+    echo "  // then export: return { remaining, initialMins, start, cancel }"
+    echo ""
+  fi
+fi
+
+# ── Summary ───────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${GREEN}║  Done! Files written / patched:                          ║${RESET}"
+echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
+printf "${GREEN}║  %-56s║${RESET}\n" "${PLAYER}  (backup: .bak)"
+[ -n "$LAYOUT" ] && printf "${GREEN}║  %-56s║${RESET}\n" "${LAYOUT}  (patched, backup: .bak)"
+echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
+echo -e "${GREEN}║  What changed in the right toolbar                       ║${RESET}"
+echo -e "${GREEN}║  ✓ Removed dead ☰ ⊞ icon buttons (no handlers)         ║${RESET}"
+echo -e "${GREEN}║  ✓ Removed duplicate ⊟ mini-player button               ║${RESET}"
+echo -e "${GREEN}║  ✓ SleepTimerMenu now rendered (was declared, never shown)║${RESET}"
+echo -e "${GREEN}║  ✓ 🌙 shows remaining time badge when timer is active    ║${RESET}"
+echo -e "${GREEN}║  ✓ ✦ ambient button wired to onAmbient prop             ║${RESET}"
+echo -e "${GREEN}║  ✓ Shuffle + Repeat buttons wired to toggleShuffle/Repeat║${RESET}"
+echo -e "${GREEN}║  ✓ Repeat badge shows '1' dot in repeat-one mode        ║${RESET}"
+echo -e "${GREEN}║  New toolbar order: 🌙 | ✦ | ⊟ | 🔊 vol               ║${RESET}"
+echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
+echo -e "${GREEN}║  Next steps                                              ║${RESET}"
+echo -e "${GREEN}║  1. npm run dev — verify toolbar looks correct           ║${RESET}"
+echo -e "${GREEN}║  2. Click 🌙 — SleepTimerMenu should appear above player ║${RESET}"
+echo -e "${GREEN}║  3. Click ✦ — AmbientMode overlay should open           ║${RESET}"
+echo -e "${GREEN}║  4. Click ⊟ — MiniPlayer pill should float over UI      ║${RESET}"
+echo -e "${GREEN}║  5. git add -A && git commit -m 'fix: player toolbar'    ║${RESET}"
+echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${RESET}"
+echo ""
