@@ -1,3 +1,65 @@
+#!/usr/bin/env bash
+# =============================================================================
+#  fix-library-page.sh — Mysic · Real-time Dynamic Library Page
+#
+#  Run from the ROOT of your mysic repo:
+#    bash fix-library-page.sh
+#
+#  PROBLEM
+#  ───────
+#  LibraryPage reads from the static SONGS array in data/songs.js — a
+#  hardcoded list that never changes. It has no connection to:
+#    • What the user has actually searched and played
+#    • The recentlyPlayed array persisted in localStorage + usePlayer context
+#    • The live queue
+#
+#  FIX — three live sections driven by actual user activity:
+#
+#  1. Recently Played  — reads recentlyPlayed[] from usePlayer context.
+#     Already persisted to localStorage by fix-progress-tracking.sh.
+#     Updates the instant any song starts playing.
+#
+#  2. Inline Search    — live YouTube results as you type (480ms debounce).
+#     Plays directly into the queue on click. Same proxy as Home.
+#
+#  3. Search History   — last 10 unique queries, stored as chips in
+#     localStorage key 'mysic_search_history'. Click to re-run. Clear all.
+# =============================================================================
+set -e
+
+CYAN='\033[0;36m'; GREEN='\033[0;32m'
+YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
+
+log()  { echo -e "${CYAN}[mysic]${RESET} $1"; }
+ok()   { echo -e "${GREEN}  ✓${RESET} $1"; }
+warn() { echo -e "${YELLOW}  ⚠${RESET} $1"; }
+die()  { echo -e "${RED}  ✗ $1${RESET}"; exit 1; }
+
+echo ""
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${CYAN}║   Mysic — Real-time Dynamic Library Page                 ║${RESET}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${RESET}"
+echo ""
+
+[ -f "package.json" ] || die "Run from the repo root (package.json not found)"
+log "Repo root confirmed"
+
+# ── Locate LibraryPage ────────────────────────────────────────────────────────
+LIBRARY=""
+for p in src/pages/LibraryPage.jsx src/pages/LibraryPage.js pages/LibraryPage.jsx; do
+  [ -f "$p" ] && LIBRARY="$p" && break
+done
+if [ -z "$LIBRARY" ]; then
+  warn "LibraryPage.jsx not found — creating at src/pages/LibraryPage.jsx"
+  mkdir -p src/pages
+  LIBRARY="src/pages/LibraryPage.jsx"
+else
+  cp "$LIBRARY" "${LIBRARY}.bak"
+  ok "Backed up → ${LIBRARY}.bak"
+fi
+
+log "Writing ${LIBRARY} …"
+cat > "$LIBRARY" << 'LIBRARYEOF'
 /**
  * LibraryPage.jsx — Real-time dynamic music library
  *
@@ -348,3 +410,54 @@ export default function LibraryPage({ screenSize = 'desktop' }) {
     </div>
   )
 }
+LIBRARYEOF
+ok "${LIBRARY} written"
+
+# ── Verify recentlyPlayed in usePlayer ───────────────────────────────────────
+log "Verifying usePlayer exposes recentlyPlayed …"
+USE_PLAYER=""
+for p in src/hooks/usePlayer.jsx src/hooks/usePlayer.js hooks/usePlayer.jsx; do
+  [ -f "$p" ] && USE_PLAYER="$p" && break
+done
+if [ -z "$USE_PLAYER" ]; then
+  warn "usePlayer not found — ensure recentlyPlayed is in context value"
+elif grep -q "recentlyPlayed" "$USE_PLAYER"; then
+  ok "recentlyPlayed present in ${USE_PLAYER}"
+else
+  warn "recentlyPlayed NOT found in ${USE_PLAYER} — run fix-progress-tracking.sh first"
+fi
+
+# ── Verify ytSearch path ─────────────────────────────────────────────────────
+log "Checking ytSearch import path …"
+for p in src/utils/ytSearch.js src/utils/ytSearch.ts utils/ytSearch.js; do
+  [ -f "$p" ] && ok "searchYouTube found at ${p}" && break
+done
+
+echo ""
+echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${GREEN}║  Done!                                                    ║${RESET}"
+echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
+printf "${GREEN}║  %-56s║${RESET}\n" "${LIBRARY}  (backup: .bak)"
+echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
+echo -e "${GREEN}║  What's new in Library                                   ║${RESET}"
+echo -e "${GREEN}║  ✓ No static SONGS — zero hardcoded data                 ║${RESET}"
+echo -e "${GREEN}║  ✓ Recently Played: live from usePlayer context          ║${RESET}"
+echo -e "${GREEN}║    Updates the instant any song starts playing           ║${RESET}"
+echo -e "${GREEN}║    Persisted across sessions via localStorage            ║${RESET}"
+echo -e "${GREEN}║  ✓ Inline search: live YouTube results as you type       ║${RESET}"
+echo -e "${GREEN}║    480ms debounce, skeleton loading state                ║${RESET}"
+echo -e "${GREEN}║    Plays straight into queue on click                    ║${RESET}"
+echo -e "${GREEN}║  ✓ Search History: last 10 queries as clickable chips    ║${RESET}"
+echo -e "${GREEN}║    Persisted in localStorage key mysic_search_history    ║${RESET}"
+echo -e "${GREEN}║    Clear button removes all history                      ║${RESET}"
+echo -e "${GREEN}║  ✓ Empty state with CTA to search when nothing played    ║${RESET}"
+echo -e "${GREEN}║  ✓ Like/unlike works inline in all sections              ║${RESET}"
+echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
+echo -e "${GREEN}║  Next steps                                              ║${RESET}"
+echo -e "${GREEN}║  1. npm run dev                                          ║${RESET}"
+echo -e "${GREEN}║  2. Play 2-3 songs → Library shows them instantly        ║${RESET}"
+echo -e "${GREEN}║  3. Search in Library → live results appear              ║${RESET}"
+echo -e "${GREEN}║  4. Search again → history chips appear                  ║${RESET}"
+echo -e "${GREEN}║  5. git add -A && git commit -m 'feat: dynamic library'  ║${RESET}"
+echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${RESET}"
+echo ""
