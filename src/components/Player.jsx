@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { usePlayer } from '../hooks/usePlayer.jsx'
 import { formatTime } from '../data/songs'
 import AlbumArt from './AlbumArt'
+import { useSleepTimer } from '../hooks/useSleepTimer'
+import SleepTimerMenu from './SleepTimerMenu'
 
 const EASE = [0.25, 0.46, 0.45, 0.94]
 
@@ -177,7 +179,7 @@ function MobilePlayer({ onNowPlayingClick }) {
 }
 
 /* ── Desktop / Tablet Player ────────────────────────────── */
-export default function Player({ mobile = false, onNowPlayingClick, screenSize = 'desktop' }) {
+export default function Player({ mobile = false, onNowPlayingClick, onMiniPlayer, onAmbient, screenSize = 'desktop' }) {
   const { currentSong, isPlaying, progress, volume, togglePlay, playNext, playPrev, seek, setVolume, toggleLike, liked } = usePlayer()
   const isLiked    = liked.has(currentSong.id)
   const currentSec = Math.floor((progress / 100) * currentSong.duration)
@@ -191,6 +193,10 @@ export default function Player({ mobile = false, onNowPlayingClick, screenSize =
     setter(true)
     try { await fn() } finally { setTimeout(() => setter(false), 650) }
   }
+
+  const { remaining, start: startTimer, cancel: cancelTimer } = useSleepTimer()
+  const [showTimer, setShowTimer] = useState(false)
+  const [timerMins, setTimerMins] = useState(30)
 
   if (mobile) return <MobilePlayer onNowPlayingClick={onNowPlayingClick} />
 
@@ -281,6 +287,47 @@ export default function Player({ mobile = false, onNowPlayingClick, screenSize =
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
             >{icon}</motion.button>
           ))}
+          {/* Mini-player pop-out */}
+          {onMiniPlayer && (
+            <motion.button
+              title='Pop out mini-player'
+              onClick={onMiniPlayer}
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.90 }}
+              style={{
+                background: 'none', border: 'none',
+                color: 'var(--text-muted)', fontSize: 14,
+                cursor: 'pointer', transition: 'color 0.2s',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              &#x229F;
+            </motion.button>
+          )}
+          {/* Mini-player pop-out button */}
+          {onMiniPlayer && (
+            <motion.button
+              title="Pop out mini-player"
+              onClick={onMiniPlayer}
+              whileHover={{ scale: 1.18 }}
+              whileTap={{ scale: 0.88 }}
+              style={{
+                background: 'none', border: 'none',
+                color: 'var(--text-muted)',
+                fontSize: 16, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 32, height: 32, borderRadius: 8,
+                transition: 'color 0.18s',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              ⊟
+            </motion.button>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>{volume === 0 ? '\uD83D\uDD07' : volume < 40 ? '\uD83D\uDD08' : '\uD83D\uDD0A'}</span>
             <Scrubber pct={volume} onSeek={setVolume} width="80px" accent="linear-gradient(90deg, var(--accent-secondary), var(--accent-primary))" />

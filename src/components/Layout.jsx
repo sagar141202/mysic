@@ -14,6 +14,8 @@ import PlaylistsPage from '../pages/PlaylistsPage'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import KeyFlash    from './KeyFlash'
 import CheatSheet  from './CheatSheet'
+import MiniPlayer  from './MiniPlayer'
+import AmbientMode   from './AmbientMode'
 
 function PageRouter({ page, screenSize }) {
   const props = { screenSize }
@@ -30,7 +32,9 @@ export default function Layout() {
   const [screen,         setScreen]         = useState('desktop')
   const [nowPlayingOpen, setNowPlayingOpen] = useState(false)
   const [activePage,     setActivePage]     = useState('Home')
+  const [showAmbient,    setShowAmbient]    = useState(false)
   const [showCheatSheet, setShowCheatSheet] = useState(false)
+  const [showMini,       setShowMini]       = useState(false)
 
   useEffect(() => {
     const upd = () => {
@@ -100,7 +104,7 @@ export default function Layout() {
             <NowPlaying />
           </div>
           <div style={{ gridColumn: '1/-1', gridRow: 2, minWidth: 0 }}>
-            <Player />
+            <Player onMiniPlayer={() => setShowMini(true)} onAmbient={() => setShowAmbient(true)} />
           </div>
         </div>
       )}
@@ -127,7 +131,7 @@ export default function Layout() {
             </AnimatePresence>
           </div>
           <div style={{ gridColumn: '1/-1', gridRow: 2, minWidth: 0 }}>
-            <Player onNowPlayingClick={() => setNowPlayingOpen(true)} />
+            <Player onNowPlayingClick={() => setNowPlayingOpen(true)} onMiniPlayer={() => setShowMini(true)} onAmbient={() => setShowAmbient(true)} />
           </div>
 
           {nowPlayingOpen && (
@@ -158,7 +162,7 @@ export default function Layout() {
               </PageTransition>
             </AnimatePresence>
           </div>
-          <Player mobile onNowPlayingClick={() => setNowPlayingOpen(true)} />
+          <Player mobile onNowPlayingClick={() => setNowPlayingOpen(true)} onMiniPlayer={() => setShowMini(true)} />
           <MobileNav activePage={activePage} onNavigate={setActivePage} />
 
           {nowPlayingOpen && (
@@ -178,6 +182,23 @@ export default function Layout() {
           )}
         </div>
       )}
+
+      {/* Floating mini-player — renders over everything */}
+      <AnimatePresence>
+        {showMini && (
+          <MiniPlayer
+            onClose={() => setShowMini(false)}
+            onExpand={() => setShowMini(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Ambient / Cinema mode overlay */}
+      <AnimatePresence>
+        {showAmbient && (
+          <AmbientMode onClose={() => setShowAmbient(false)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
